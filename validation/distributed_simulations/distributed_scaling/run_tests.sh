@@ -37,8 +37,8 @@
 # Finally -> $ ./run_tests.sh
 
 # Julia specific enviromental variables
-export JULIA_DEPOT_PATH="/path/to/depot"
-export JULIA="/path/to/julia"
+# export JULIA_DEPOT_PATH="/path/to/depot"
+export JULIA="julia"
 
 # PROFILE_TRACE=1 only if the system is equipped with nsys
 export PROFILE_TRACE=0
@@ -47,12 +47,12 @@ export PROFILE_TRACE=0
 export NGPUS_PER_NODE=4
 
 # Choice between nonhydrostatic and hydrostatic
-export SIMULATION=nonhydrostatic
+export SIMULATION=hydrostatic
 # Choice between strong and weak
-export SCALING=weak
+export SCALING=strong
 
-for RX in 1 2 4 8 16 32 64; do
-    for RY in 1 2 4 8 16 32 64; do
+for RX in 1 2 4; do
+    for RY in 1; do
 
 		export RX
         export RY
@@ -97,7 +97,7 @@ for RX in 1 2 4 8 16 32 64; do
 		# ================== RUN SCALING TEST ================== #
 		# ====================================================== #
 
-		sbatch -N ${NNODES} --gres=gpu:${NTASKS} --ntasks-per-node=${NTASKS} job_script.sh
+		./job_script.sh
 
 		# Use qsub on PBS systems!!!
 		# qsub pbs_job_script.sh

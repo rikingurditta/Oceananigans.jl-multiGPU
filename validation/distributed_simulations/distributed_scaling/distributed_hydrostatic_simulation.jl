@@ -1,6 +1,10 @@
+print("hihhihihi\n")
+using Base
+print("active project:\t", Base.active_project(), "\n")
+using CUDA
 using MPI
 MPI.Init()
-
+print("MPI has CUDA:\t", MPI.has_cuda(), "\n")
 using JLD2
 using Statistics: mean
 using Printf
@@ -28,7 +32,7 @@ function run_hydrostatic_simulation!(grid_size, ranks, FT::DataType = Float64;
                                      CFL = 0.35,
                                      barotropic_CFL = 0.75)
 
-    arch  = Distributed(GPU(), FT; partition = Partition(ranks...))
+    arch  = Distributed(GPU(); partition = Partition(ranks...))
     grid  = LatitudeLongitudeGrid(arch; size = grid_size, longitude = (-180, 180),
                                   latitude = (-75, 75),
                                   z = (-5500, 0),
@@ -37,7 +41,7 @@ function run_hydrostatic_simulation!(grid_size, ranks, FT::DataType = Float64;
     grid  = ImmersedBoundaryGrid(grid, GridFittedBottom(double_drake_bathymetry))
 
     momentum_advection = WENOVectorInvariant(FT)
-    tracer_advection   = WENO(grid, order = 7)
+    tracer_advection   = WENO(order = 7)
 
     buoyancy = SeawaterBuoyancy(FT; equation_of_state = TEOS10EquationOfState(FT))
     coriolis = HydrostaticSphericalCoriolis(FT)
@@ -45,7 +49,7 @@ function run_hydrostatic_simulation!(grid_size, ranks, FT::DataType = Float64;
 
     max_Δt = 45 * 48 / grid.Δλᶠᵃᵃ
 
-    free_surface = SplitExplicitFreeSurface(FT; grid, cfl = barotropic_CFL, fixed_Δt = max_Δt)
+    free_surface = SplitExplicitFreeSurface(grid; cfl = barotropic_CFL, fixed_Δt = max_Δt)
 
     model = HydrostaticFreeSurfaceModel(; grid,
                                           momentum_advection,
@@ -60,10 +64,10 @@ function run_hydrostatic_simulation!(grid_size, ranks, FT::DataType = Float64;
     wtime = Ref(time_ns())
 
     function progress(sim)
-        @info @sprintf("iteration: %d, Δt: %2e, wall time: %s (|u|, |v|, |w|): %.2e %.2e %.2e, b: %.2e \n",
+        @info @sprintf("iteration: %d, Δt: %2e, wall time: %s (|u|, |v|, |w|): %.2e %.2e %.2e \n",
               sim.model.clock.iteration, sim.Δt, prettytime((time_ns() - wtime[])*1e-9),
               maximum(abs, sim.model.velocities.u), maximum(abs, sim.model.velocities.v),
-              maximum(abs, sim.model.velocities.w), maximum(abs, sim.model.tracers.b))
+              maximum(abs, sim.model.velocities.w))
        wtime[] = time_ns()
     end
 
@@ -72,7 +76,7 @@ function run_hydrostatic_simulation!(grid_size, ranks, FT::DataType = Float64;
     # Adaptive time-stepping
     wizard = TimeStepWizard(cfl=CFL; max_change=1.1, min_Δt=10, max_Δt)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(10))
-    simulation.callbacks[:progress] = Callback(progress, IterationInterval(10))
+    simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
@@ -98,6 +102,8 @@ Ny = parse(Int, get(ENV, "NY", "600"))
 Nz = parse(Int, get(ENV, "NZ", "100"))
 
 grid_size = (Nx, Ny, Nz)
+
+print("hi?\n")
 
 @info "Running HydrostaticFreeSurface model with ranks $ranks and grid size $grid_size"
 run_hydrostatic_simulation!(grid_size, ranks)

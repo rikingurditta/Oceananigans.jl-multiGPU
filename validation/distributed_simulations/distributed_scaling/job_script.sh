@@ -7,8 +7,8 @@
 
 ## modules setup
 # Upload modules: cuda and cuda-aware mpi
-module purge all
-module add spack
+# module purge all
+# module add spack
 # Example:
 # module add cuda/11.4
 # module load openmpi/3.1.6-cuda-pmi-ucx-slurm-jhklron
@@ -34,7 +34,7 @@ chmod +x launch.sh
 
 # Add an NSYS trace only if the system has it
 if test $PROFILE_TRACE == 1; then
-   NSYS="nsys profile --trace=nvtx,cuda,mpi --output=${SIMULATION}_RX${RX}_RY${RY}_NX${NX}_NY${NY}"
+   NSYS="nsys profile --trace=nvtx,cuda,mpi --mpi-impl=openmp --output=${SIMULATION}_RX${RX}_RY${RY}_NX${NX}_NY${NY}"
 fi
 
 if test $SIMULATION = "hydrostatic"; then
@@ -43,4 +43,11 @@ else
    RUNFILE=distributed_nonhydrostatic_simulation.jl
 fi
 
-$NSYS srun --mpi=pmi2 ./launch.sh $JULIA --check-bounds=no --project $RUNFILE
+pwd
+
+echo $RUNFILE
+
+$NSYS ./launch.sh ~/.julia/bin/mpiexecjl --project -n $(($RX*$RY)) julia --project --check-bounds=no $RUNFILE
+
+
+
